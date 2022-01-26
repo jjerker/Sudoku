@@ -48,20 +48,23 @@ int iter_count=0;
 
 
 
-int checkfeasibility(const int i, const int j, int k) {
+int checkfeasibility(const int i, const int j, const int k) {
   // Check row,column
   int q=i/3;
   int w=j/3;
   int l, li, lj;
+  iter_count++;
   for (l=0; l<9; l++) {
     // Chec row
      if (l!=i) {
-       if (sudo[i][j] == sudo[l][j]) {//printf("Column feasibility check failed\n"); 
+       //printf("Row feasibility check, [%i,%i] %i = [%i,%i] %i\n", i,j,sudo[i][j], l,j,sudo[l][j]); 
+       if (k == sudo[l][j]) {//printf("Column feasibility check failed\n"); 
+
 	 return false;}
     }
     //check column
     if (l!=j) {
-      if (sudo[i][j] == sudo[i][l]) {//printf("Row feasibility check failed, [%i,%i] %i = [%i,%i] %i\n", i,j,sudo[i][j], i,l,sudo[i][l]); 
+      if (k == sudo[i][l]) {//printf("Row feasibility check failed, [%i,%i] %i = [%i,%i] %i\n", i,j,sudo[i][j], i,l,sudo[i][l]); 
 	return false;}
     }
     // Check Quadrant
@@ -69,27 +72,83 @@ int checkfeasibility(const int i, const int j, int k) {
     lj = l%3 + w*3;
 
     if (li!=i && lj!=j) {
-      if (sudo[i][j] == sudo[li][lj]) {//printf("Submatrix feasibility check failed\n"); 
+      if (k == sudo[li][lj]) {//printf("Submatrix feasibility check failed\n"); 
 	return false;}
     }    
   }
+  //  printf("Checkfeasibility return TRUE\n");
   return true;
 }
     
+int nOpt[9][9];
+int maxOpt;
+int minOpt;
+
+int updateNumOptions() {
+  int numOpt;
+  int i,j,k;
+  maxOpt = 0;
+  minOpt = 9;
+ for (i=0; i<9; i++) {
+    for (j=0; j<9; j++) {
+      if (sudo[i][j]) {
+	nOpt[i][j] = 0;
+	continue;
+      }
+      numOpt = 0;
+      for (k=1; k<=9; k++) {
+	numOpt += checkfeasibility(i,j,k);
+	//printf("3. Checkfeasi %i %i %i: %i\n",i,j,k,checkfeasibility(i,j,k));
+	//printf("2. Num options %i, Max options %i\n", numOpt, maxOpt);
+      }
+      nOpt[i][j] = numOpt;
+      maxOpt = numOpt>maxOpt?numOpt:maxOpt;
+      if (numOpt) minOpt = numOpt<minOpt?numOpt:minOpt;
+      // printf("Num options %i, MinOpt %i, Max options %i\n", numOpt, minOpt, maxOpt);
+    }
+ }
+ // printf("Min options %i, Max options %i\n", minOpt, maxOpt);
+}
+
+int getNextIter(int pos) {
+  int i,j,l;
+  //  return (pos+1);
+  if (maxOpt == 0) return -1;
+  for (l=0; l<81; l++) {
+    int i=l/9;
+    int j=l%9;
+    //printf("Testing num options %i,%i: %i\n", i,j, nOpt[i][j]);
+    if (nOpt[i][j]>0 && nOpt[i][j] <= minOpt) {printf("Next to work on; %i\n", l); return l; }
+  }
+  printf("ERROR: did not find next to work on,....\n");
+  return -1;
+}
 
 int sudoiter(int pos) {
   int i=pos/9;
   int j=pos%9;
   int k;
   if (pos>=81) return true;
-  if (sudo[i][j]) return sudoiter(pos+1);
+  updateNumOptions();
+
+  if (maxOpt==0) return true;
+  if (sudo[i][j]) return sudoiter(getNextIter(pos));
+  // Update selection options 
+  /* 
   for (k=1; k<=9;k++) {
-    iter_count++;
+    optnum += opt[k] = checkfeasibility(i,j,k);
+  }
+ 
+  if (optnum == 1) {sudo[i][j] = k; return true;}
+  */
+
+  for (k=1; k<=9;k++) {
     sudo[i][j] = k;
     //printf("Testing with %i at postion [%i][%i]\n", k,i,j);
     if (checkfeasibility(i,j,k)) {
       //printf("%i at postion [%i][%i] possible, iterating\n", k,i,j);
-      if (sudoiter(pos+1)) {
+      //updateNumOptions();
+      if (sudoiter(getNextIter(pos))) {
 	return true;
       }
     }
